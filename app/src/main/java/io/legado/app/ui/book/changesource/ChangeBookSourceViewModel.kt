@@ -72,6 +72,8 @@ open class ChangeBookSourceViewModel(application: Application) : BaseViewModel(a
     val totalSourceCount: Int
         get() = bookSourceParts.size
     private var searchBookList = arrayListOf<SearchBook>()
+    // 域名分组：domainKey -> 该域下所有搜索到的书源（用于换源时选版本）
+    private val domainSearchBooks = ConcurrentHashMap<String, MutableList<SearchBook>>()
     private val searchBooks = Collections.synchronizedList(arrayListOf<SearchBook>())
     private val tocMap = ConcurrentHashMap<String, List<BookChapter>>()
     private val _changeSourceProgress = MutableStateFlow(0 to "")
@@ -178,11 +180,12 @@ open class ChangeBookSourceViewModel(application: Application) : BaseViewModel(a
     }
 
     /**
-     * 搜索书籍
+     * 搜索书籍 - 按域名去重，同一域名只取一个书源
      */
     fun startSearch() {
         execute {
             stopSearch()
+            domainSearchBooks.clear()
             if (searchBooks.isNotEmpty()) {
                 appDb.searchBookDao.delete(*searchBooks.toTypedArray())
                 searchBooks.clear()
@@ -194,17 +197,19 @@ open class ChangeBookSourceViewModel(application: Application) : BaseViewModel(a
             tocMapChapterCount = 0
             _changeSourceProgress.value = 0 to ""
             val searchGroup = AppConfig.searchGroup
-            if (searchGroup.isBlank()) {
-                bookSourceParts.addAll(appDb.bookSourceDao.allEnabledPart)
+            val allSources = if (searchGroup.isBlank()) {
+                appDb.bookSourceDao.allEnabledPart
             } else {
                 val sources = appDb.bookSourceDao.getEnabledPartByGroup(searchGroup)
                 if (sources.isEmpty()) {
                     AppConfig.searchGroup = ""
-                    bookSourceParts.addAll(appDb.bookSourceDao.allEnabledPart)
+                    appDb.bookSourceDao.allEnabledPart
                 } else {
-                    bookSourceParts.addAll(sources)
+                    sources
                 }
             }
+            // 按 domainKey 去重：同一域名只取一个书源搜索
+            bookSourceParts.addAll(dedupSourcesByDomain(allSources))
             initSearchPool()
             search()
         }
@@ -213,6 +218,7 @@ open class ChangeBookSourceViewModel(application: Application) : BaseViewModel(a
     fun startSearch(origin: String) {
         execute {
             stopSearch()
+            domainSearchBooks.clear()
             bookSourceParts.clear()
             tocMap.clear()
             bookMap.clear()
@@ -222,6 +228,51 @@ open class ChangeBookSourceViewModel(application: Application) : BaseViewModel(a
             initSearchPool()
             search()
         }
+    }
+
+    /**
+     * 按域名去重：同一域名下只保留一个书源（取 customOrder 最小的）
+     */
+    private fun dedupSourcesByDomain(sources: List<BookSourcePart>): List<BookSourcePart> {
+        val domainMap = linkedMapOf<String, BookSourcePart>()
+        sources.forEach { source ->
+            val key = source.domainKey ?: source.bookSourceUrl
+            // 保留 customOrder 最小的（即优先级最高的）
+            val existing = domainMap[key]
+            if (existing == null || source.customOrder < existing.customOrder) {
+                domainMap[key] = source
+            }
+        }
+        // 记录该域下的所有书源（用于后续版本切换）
+        sources.groupBy { it.domainKey ?: it.bookSourceUrl }.forEach { (key, group) ->
+            if (group.size > 1) {
+                // 记录该域下其他书源的 URL
+                val primary = domainMap[key]
+                val alternatives = group.filter { it.bookSourceUrl != primary?.bookSourceUrl }
+                domainSearchBooks[key] = alternatives.toMutableList()
+            }
+        }
+        return domainMap.values.toList()
+    }
+
+    /**
+     * 获取某域名下的替代书源（用于版本切换）
+     */
+    fun getAlternativeSources(domainKey: String): List<SearchBook>? {
+        val alt = domainSearchBooks[domainKey] ?: return null
+        return alt.mapNotNull { part ->
+            searchBooks.find { it.origin == part.bookSourceUrl }
+        }.ifEmpty { null }
+    }
+
+    /**
+     * 获取搜索结果的 domainKey
+     */
+    fun getDomainKeyForSearch(searchBook: SearchBook): String? {
+        appDb.bookSourceDao.getBookSource(searchBook.origin)?.let {
+            return it.domainKey ?: searchBook.origin
+        }
+        return null
     }
 
     private fun search() {

@@ -348,6 +348,20 @@ class ChangeBookSourceDialog() : BaseDialogFragment(R.layout.dialog_book_change_
         }
     }
 
+    override fun changeToWithVersions(searchBook: SearchBook, alternativeVersions: List<SearchBook>) {
+        val options = mutableListOf(searchBook).also { it.addAll(alternativeVersions) }
+        val names = options.map { it.originName }
+        alert(
+            titleResource = R.string.select_source_version,
+            messageResource = R.string.select_source_version_hint
+        ) {
+            items(names.toTypedArray()) { _, which ->
+                changeTo(options[which])
+            }
+            cancelButton()
+        }
+    }
+
     override val oldBookUrl: String?
         get() = callBack?.oldBook?.bookUrl
 

@@ -152,7 +152,12 @@ class BookSourceViewModel(application: Application) : BaseViewModel(application)
         execute {
             val selection = adapter.selection
             val selectionSize = selection.size
-            val selectedRate = selectionSize.toFloat() / adapter.itemCount.toFloat()
+            // 计算实际书源条目数（排除域名标题）
+            val sourceItemCount = adapter.getItems()
+                .count { it is BookSourceListItem.SourceItem }
+            val selectedRate = if (sourceItemCount > 0) {
+                selectionSize.toFloat() / sourceItemCount.toFloat()
+            } else 1f
             val sources = if (selectedRate == 1f) {
                 getBookSources(searchKey, sortAscending, sort)
             } else if (selectedRate < 0.3) {

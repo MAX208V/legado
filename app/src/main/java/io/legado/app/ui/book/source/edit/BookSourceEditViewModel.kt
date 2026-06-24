@@ -64,6 +64,8 @@ class BookSourceEditViewModel(application: Application) : BaseViewModel(applicat
                     SharedJsScope.remove(oldSource.jsLib)
                 }
             }
+            // 计算 domainKey
+            source.computeDomainKey()
             bookSource?.let {
                 if (it.bookSourceUrl != source.bookSourceUrl) {
                     SourceHelp.deleteBookSource(it.bookSourceUrl)
@@ -110,7 +112,7 @@ class BookSourceEditViewModel(application: Application) : BaseViewModel(applicat
     }
 
     suspend fun importSource(text: String): BookSource {
-        return when {
+        val source = when {
             text.isAbsUrl() -> {
                 val text1 = okHttpClient.newCallStrResponse { url(text) }.body
                 importSource(text1!!)
@@ -137,6 +139,9 @@ class BookSourceEditViewModel(application: Application) : BaseViewModel(applicat
 
             else -> throw NoStackTraceException("格式不对")
         }
+        // 导入时计算 domainKey
+        source.computeDomainKey()
+        return source
     }
 
     fun clearCookie(url: String) {

@@ -142,11 +142,13 @@ object SourceHelp {
         val bookSourcesGroup = bookSources.groupBy {
             is18Plus(it.bookSourceUrl)
         }
+        bookSourcesGroup[false]?.let { list ->
+            // 计算每个书源的 domainKey
+            list.forEach { it.computeDomainKey() }
+            appDb.bookSourceDao.insert(*list.toTypedArray())
+        }
         bookSourcesGroup[true]?.forEach {
             appCtx.toastOnUi("${it.bookSourceName}是18+网址,禁止导入.")
-        }
-        bookSourcesGroup[false]?.let {
-            appDb.bookSourceDao.insert(*it.toTypedArray())
         }
         Coroutine.async {
             adjustSortNumber()

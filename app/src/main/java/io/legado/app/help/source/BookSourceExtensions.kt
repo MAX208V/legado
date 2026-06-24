@@ -127,6 +127,17 @@ fun BookSource.exploreKindsJson(): String {
         ?: ""
 }
 
+/**
+ * 计算并更新书源的 domainKey
+ * 默认使用 NetworkUtils.getSubDomainOrNull 提取二级域名
+ * 如果书源设置了 domainRegex，优先使用正则提取
+ */
+fun BookSource.computeDomainKey(): String? {
+    return io.legado.app.utils.NetworkUtils.computeDomainKey(bookSourceUrl, domainRegex).also {
+        domainKey = it
+    }
+}
+
 fun BookSource.getBookType(): Int {
     return when (bookSourceType) {
         BookSourceType.file -> BookType.text or BookType.webFile

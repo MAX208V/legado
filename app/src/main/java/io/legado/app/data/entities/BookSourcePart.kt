@@ -10,7 +10,8 @@ import io.legado.app.utils.splitNotBlank
 @DatabaseView(
     """select bookSourceUrl, bookSourceName, bookSourceGroup, customOrder, enabled, enabledExplore, 
     (loginUrl is not null and trim(loginUrl) <> '') hasLoginUrl, lastUpdateTime, respondTime, weight, 
-    (exploreUrl is not null and trim(exploreUrl) <> '') hasExploreUrl, eventListener, bookSourceType
+    (exploreUrl is not null and trim(exploreUrl) <> '') hasExploreUrl, eventListener, bookSourceType,
+    domainKey
     from book_sources""",
     viewName = "book_sources_part"
 )
@@ -40,7 +41,9 @@ data class BookSourcePart(
     // 是否启用事件监听
     var eventListener: Boolean = false,
     // 书源类型
-    var bookSourceType: Int = 0
+    var bookSourceType: Int = 0,
+    // 源URL分组key（自动计算的二级域名）
+    var domainKey: String? = null
 ) {
 
     override fun hashCode(): Int {

@@ -55,7 +55,15 @@ class ChangeBookSourceAdapter(
     ) {
         binding.apply {
             if (payloads.isEmpty()) {
-                tvOrigin.text = item.originName
+                // 显示域名信息（如果有同域替代版本）
+                val domainKey = viewModel.getDomainKeyForSearch(item)
+                val altSources = domainKey?.let { viewModel.getAlternativeSources(it) }
+                val originDisplay = if (altSources != null && altSources.isNotEmpty()) {
+                    "${item.originName} ▼ (${altSources.size + 1}个版本)"
+                } else {
+                    item.originName
+                }
+                tvOrigin.text = originDisplay
                 tvAuthor.text = item.author
                 tvLast.text = item.getDisplayLastChapterTitle()
                 tvCurrentChapterWordCount.text = item.chapterWordCountText
@@ -175,9 +183,17 @@ class ChangeBookSourceAdapter(
             }
         }
         holder.itemView.setOnClickListener {
-            getItem(holder.layoutPosition)?.let {
-                if (it.bookUrl != callBack.oldBookUrl) {
-                    callBack.changeTo(it)
+            getItem(holder.layoutPosition)?.let { item ->
+                if (item.bookUrl != callBack.oldBookUrl) {
+                    // 检查是否有同域替代版本
+                    val domainKey = viewModel.getDomainKeyForSearch(item)
+                    val altSources = domainKey?.let { viewModel.getAlternativeSources(it) }
+                    if (altSources != null && altSources.isNotEmpty()) {
+                        // 有多个版本，弹出版本选择
+                        callBack.changeToWithVersions(item, altSources)
+                    } else {
+                        callBack.changeTo(item)
+                    }
                 }
             }
         }
@@ -225,6 +241,7 @@ class ChangeBookSourceAdapter(
     interface CallBack {
         val oldBookUrl: String?
         fun changeTo(searchBook: SearchBook)
+        fun changeToWithVersions(searchBook: SearchBook, alternativeVersions: List<SearchBook>)
         fun topSource(searchBook: SearchBook)
         fun bottomSource(searchBook: SearchBook)
         fun editSource(searchBook: SearchBook)

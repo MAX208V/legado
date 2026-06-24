@@ -313,6 +313,8 @@ class BookSourceEditActivity :
         sourceEntities.apply {
             add(EditEntity("bookSourceUrl", bs.bookSourceUrl, R.string.source_url))
             add(EditEntity("bookSourceName", bs.bookSourceName, R.string.source_name))
+            // domainKey 为自动计算，显示但不建议直接修改
+            add(EditEntity("domainKey", bs.domainKey ?: "", R.string.domain_key))
             add(EditEntity("bookSourceGroup", bs.bookSourceGroup, R.string.source_group))
             add(EditEntity("bookSourceComment", bs.bookSourceComment, R.string.comment))
             add(EditEntity("loginUrl", bs.loginUrl, R.string.login_url))
@@ -323,6 +325,7 @@ class BookSourceEditActivity :
             add(EditEntity("header", bs.header, R.string.source_http_header))
             add(EditEntity("variableComment", bs.variableComment, R.string.variable_comment))
             add(EditEntity("concurrentRate", bs.concurrentRate, R.string.concurrent_rate))
+            add(EditEntity("domainRegex", bs.domainRegex, R.string.domain_regex))
             add(EditEntity("jsLib", bs.jsLib, "jsLib"))
         }
         // 搜索
@@ -458,6 +461,8 @@ class BookSourceEditActivity :
                 "concurrentRate" -> source.concurrentRate = it.value
                 "variableComment" -> source.variableComment = it.value
                 "jsLib" -> source.jsLib = it.value
+                "domainKey" -> source.domainKey = it.value
+                "domainRegex" -> source.domainRegex = it.value
             }
         }
         searchEntities.forEach {

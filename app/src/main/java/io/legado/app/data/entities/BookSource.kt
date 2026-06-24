@@ -99,7 +99,12 @@ data class BookSource(
     @ColumnInfo(defaultValue = "0")
     var eventListener: Boolean = false, // 是否监听事件来执行回调规则
     @ColumnInfo(defaultValue = "0")
-    var customButton: Boolean = false //由书源控制的自定义按钮
+    var customButton: Boolean = false, //由书源控制的自定义按钮
+
+    // 源URL分组key（自动计算的二级域名，如 "biquge.com"）
+    var domainKey: String? = null,
+    // 自定义域名提取正则（可选，每个书源单独配置）
+    var domainRegex: String? = null
 ) : Parcelable, BaseSource {
 
     override fun getTag(): String {
@@ -259,6 +264,8 @@ data class BookSource(
                 && getBookInfoRule() == source.getBookInfoRule()
                 && getTocRule() == source.getTocRule()
                 && getContentRule() == source.getContentRule()
+                && equal(domainKey, source.domainKey)
+                && equal(domainRegex, source.domainRegex)
     }
 
     private fun equal(a: String?, b: String?) = a == b || (a.isNullOrEmpty() && b.isNullOrEmpty())

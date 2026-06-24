@@ -418,4 +418,14 @@ object DatabaseMigrations {
     )
     class Migration_84_85 : AutoMigrationSpec
 
+    @Suppress("ClassName")
+    class Migration_89_90 : AutoMigrationSpec {
+        override fun onPostMigrate(db: SupportSQLiteDatabase) {
+            // 为现有书源初始化 domainKey（后续会被 app 的 computeDomainKey 逻辑更新）
+            db.execSQL(
+                "UPDATE `book_sources` SET `domainKey` = `bookSourceUrl` WHERE `domainKey` IS NULL"
+            )
+        }
+    }
+
 }

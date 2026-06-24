@@ -235,6 +235,23 @@ object NetworkUtils {
         }.getOrDefault(null)
     }
 
+    /**
+     * 计算源URL分组key（domainKey）
+     * 默认规则：返回二级域名（如 biquge.com）
+     * 如果有自定义正则，优先使用正则从 URL 中提取
+     */
+    fun computeDomainKey(url: String, regex: String? = null): String? {
+        if (!regex.isNullOrBlank()) {
+            try {
+                val pattern = Regex(regex)
+                pattern.find(url)?.value?.let { return it }
+            } catch (_: Exception) {
+                // 正则解析失败，降级到默认逻辑
+            }
+        }
+        return getSubDomainOrNull(url)
+    }
+
     fun getDomain(url: String): String {
         val baseUrl = getBaseUrl(url) ?: return url
         return kotlin.runCatching {

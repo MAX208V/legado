@@ -336,6 +336,80 @@ interface BookSourceDao {
         }
     }
 
+    // ===== 域名分组相关查询 =====
+
+    @Query("select distinct domainKey from book_sources where domainKey is not null and trim(domainKey) <> ''")
+    fun allDomainKeys(): List<String>
+
+    @Query("select distinct domainKey from book_sources where domainKey is not null and trim(domainKey) <> ''")
+    fun flowDomainKeys(): Flow<List<String>>
+
+    @Query("select * from book_sources_part where domainKey = :domainKey order by customOrder asc")
+    fun flowByDomainKey(domainKey: String): Flow<List<BookSourcePart>>
+
+    @Query("select * from book_sources_part where domainKey = :domainKey order by customOrder asc")
+    fun getByDomainKey(domainKey: String): List<BookSourcePart>
+
+    @Query("select * from book_sources where domainKey = :domainKey order by customOrder asc")
+    fun getSourcesByDomainKey(domainKey: String): List<BookSource>
+
+    @Query(
+        """select count(*) from book_sources 
+        where domainKey = :domainKey and enabled = 1"""
+    )
+    fun countEnabledByDomainKey(domainKey: String): Int
+
+    /**
+     * 获取每个域名下第一个启用的书源（用于搜索去重）
+     */
+    @Query(
+        """select bp.* from book_sources_part bp
+        inner join (
+            select domainKey, min(customOrder) as minOrder
+            from book_sources where enabled = 1 and domainKey is not null
+            group by domainKey
+        ) g on bp.domainKey = g.domainKey and bp.customOrder = g.minOrder
+        where bp.enabled = 1
+        order by bp.customOrder"""
+    )
+    fun getAllOnePerDomain(): List<BookSourcePart>
+
+    @Query(
+        """select distinct domainKey from book_sources 
+        where enabled = 1 and domainKey is not null and trim(domainKey) <> ''"""
+    )
+    fun allEnabledDomainKeys(): List<String>
+
+    /**
+     * 获取分组下所有域名
+     */
+    @Query(
+        """select distinct domainKey from book_sources 
+        where domainKey is not null and trim(domainKey) <> '' 
+        and (bookSourceGroup = :group
+            or bookSourceGroup like :group || ',%'
+            or bookSourceGroup like '%,' || :group
+            or bookSourceGroup like '%,' || :group || ',%')
+        order by domainKey"""
+    )
+    fun getDomainKeysByGroup(group: String): List<String>
+
+    /**
+     * 获取分组 + 域名下的书源
+     */
+    @Query(
+        """select * from book_sources_part 
+        where domainKey = :domainKey
+        and (bookSourceGroup = :group
+            or bookSourceGroup like :group || ',%'
+            or bookSourceGroup like '%,' || :group
+            or bookSourceGroup like '%,' || :group || ',%')
+        order by customOrder asc"""
+    )
+    fun getByGroupAndDomain(group: String, domainKey: String): List<BookSourcePart>
+
+    // ===== 域名分组结束 =====
+
     private fun dealGroups(list: List<String>): List<String> {
         val groups = linkedSetOf<String>()
         list.forEach {

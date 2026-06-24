@@ -103,6 +103,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
         private set
     private var snackBar: Snackbar? = null
     private var groupSourcesByDomain = false
+    private var domainRegexEnabled = false
     private val hostMap = hashMapOf<String, String>()
     private val qrResult = registerForActivityResult(QrCodeResult()) {
         it ?: return@registerForActivityResult
@@ -257,7 +258,9 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
             R.id.menu_group_sources_by_domain -> {
                 item.isChecked = !item.isChecked
                 groupSourcesByDomain = item.isChecked
-                adapter.showSourceHost = item.isChecked
+                if (!groupSourcesByDomain) {
+                    adapter.expandAllDomains()
+                }
                 upBookSource(searchView.query?.toString())
             }
 
@@ -293,7 +296,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
     private fun upBookSource(searchKey: String? = null) {
         sourceFlowJob?.cancel()
         sourceFlowJob = lifecycleScope.launch {
-            when {
+            val sourceFlow = when {
                 searchKey.isNullOrEmpty() -> {
                     appDb.bookSourceDao.flowAll()
                 }
@@ -330,53 +333,46 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
                 else -> {
                     appDb.bookSourceDao.flowSearch(searchKey)
                 }
-            }.map { data ->
-                hostMap.clear()
+            }
+            sourceFlow.map { data ->
                 if (groupSourcesByDomain) {
-                    data.sortedWith(
-                        compareBy<BookSourcePart> { getSourceHost(it.bookSourceUrl) == "#" }
-                            .thenBy { getSourceHost(it.bookSourceUrl) }
-                            .thenByDescending { it.lastUpdateTime })
-                } else if (sortAscending) {
-                    when (sort) {
-                        BookSourceSort.Weight -> data.sortedBy { it.weight }
-                        BookSourceSort.Name -> data.sortedWith { o1, o2 ->
-                            o1.bookSourceName.cnCompare(o2.bookSourceName)
-                        }
-
-                        BookSourceSort.Url -> data.sortedBy { it.bookSourceUrl }
-                        BookSourceSort.Update -> data.sortedByDescending { it.lastUpdateTime }
-                        BookSourceSort.Respond -> data.sortedBy { it.respondTime }
-                        BookSourceSort.Enable -> data.sortedWith { o1, o2 ->
-                            var sort = -o1.enabled.compareTo(o2.enabled)
-                            if (sort == 0) {
-                                sort = o1.bookSourceName.cnCompare(o2.bookSourceName)
-                            }
-                            sort
-                        }
-
-                        else -> data
-                    }
+                    flattenWithDomainHeaders(data)
                 } else {
-                    when (sort) {
-                        BookSourceSort.Weight -> data.sortedByDescending { it.weight }
-                        BookSourceSort.Name -> data.sortedWith { o1, o2 ->
-                            o2.bookSourceName.cnCompare(o1.bookSourceName)
-                        }
-
-                        BookSourceSort.Url -> data.sortedByDescending { it.bookSourceUrl }
-                        BookSourceSort.Update -> data.sortedBy { it.lastUpdateTime }
-                        BookSourceSort.Respond -> data.sortedByDescending { it.respondTime }
-                        BookSourceSort.Enable -> data.sortedWith { o1, o2 ->
-                            var sort = o1.enabled.compareTo(o2.enabled)
-                            if (sort == 0) {
-                                sort = o1.bookSourceName.cnCompare(o2.bookSourceName)
+                    // 普通模式：直接作为 SourceItem 列表
+                    val sortedData = if (sortAscending) {
+                        when (sort) {
+                            BookSourceSort.Weight -> data.sortedBy { it.weight }
+                            BookSourceSort.Name -> data.sortedWith { o1, o2 ->
+                                o1.bookSourceName.cnCompare(o2.bookSourceName)
                             }
-                            sort
+                            BookSourceSort.Url -> data.sortedBy { it.bookSourceUrl }
+                            BookSourceSort.Update -> data.sortedByDescending { it.lastUpdateTime }
+                            BookSourceSort.Respond -> data.sortedBy { it.respondTime }
+                            BookSourceSort.Enable -> data.sortedWith { o1, o2 ->
+                                var s = -o1.enabled.compareTo(o2.enabled)
+                                if (s == 0) s = o1.bookSourceName.cnCompare(o2.bookSourceName)
+                                s
+                            }
+                            else -> data
                         }
-
-                        else -> data.reversed()
+                    } else {
+                        when (sort) {
+                            BookSourceSort.Weight -> data.sortedByDescending { it.weight }
+                            BookSourceSort.Name -> data.sortedWith { o1, o2 ->
+                                o2.bookSourceName.cnCompare(o1.bookSourceName)
+                            }
+                            BookSourceSort.Url -> data.sortedByDescending { it.bookSourceUrl }
+                            BookSourceSort.Update -> data.sortedBy { it.lastUpdateTime }
+                            BookSourceSort.Respond -> data.sortedByDescending { it.respondTime }
+                            BookSourceSort.Enable -> data.sortedWith { o1, o2 ->
+                                var s = o1.enabled.compareTo(o2.enabled)
+                                if (s == 0) s = o1.bookSourceName.cnCompare(o2.bookSourceName)
+                                s
+                            }
+                            else -> data.reversed()
+                        }
                     }
+                    sortedData.map { BookSourceListItem.SourceItem(it) }
                 }
             }.flowWithLifecycleAndDatabaseChange(
                 lifecycle,
@@ -390,6 +386,45 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
                 delay(500)
             }
         }
+    }
+
+    /**
+     * 将数据扁平化为带域名标题的树形列表
+     * 分组 → 域名子文件夹 → 书源
+     */
+    private fun flattenWithDomainHeaders(sources: List<BookSourcePart>): List<BookSourceListItem> {
+        val result = mutableListOf<BookSourceListItem>()
+        // 按 domainKey 分组，domainKey 为 null 的单独处理
+        val grouped = sources.groupBy { it.domainKey ?: "#" }
+        // 排序：# 排最后，其他按字母序
+        val sortedKeys = grouped.keys.sortedWith(
+            compareBy<String> { it == "#" }.thenBy { it }
+        )
+        for (domainKey in sortedKeys) {
+            val domainSources = grouped[domainKey]!!
+            // 计算启用数
+            val enabledCount = domainSources.count { it.enabled }
+            // 域名标题
+            result.add(BookSourceListItem.DomainHeader(
+                domainKey = domainKey,
+                sourceCount = domainSources.size,
+                enabledCount = enabledCount,
+                isExpanded = adapter.isDomainExpanded(domainKey)
+            ))
+            // 如果已展开，添加书源条目
+            if (adapter.isDomainExpanded(domainKey)) {
+                // 按排序规则排列
+                val sortedSources = if (sort == BookSourceSort.Default) {
+                    domainSources.sortedBy { it.customOrder }
+                } else {
+                    domainSources.sortedByDescending { it.lastUpdateTime }
+                }
+                sortedSources.forEach { source ->
+                    result.add(BookSourceListItem.SourceItem(source))
+                }
+            }
+        }
+        return result
     }
 
     override fun onResume() {
@@ -523,9 +558,16 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
                 }
                 val selectItems = adapter.selection
                 CheckSource.start(this@BookSourceActivity, selectItems)
-                val adapterItems = adapter.getItems()
-                val firstItem = adapterItems.indexOf(selectItems.firstOrNull())
-                val lastItem = adapterItems.indexOf(selectItems.lastOrNull())
+                // 计算选中项在适配器中的位置（只计算 SourceItem）
+                val sourceItems = adapter.getItems()
+                    .filterIsInstance<BookSourceListItem.SourceItem>()
+                    .map { it.source }
+                val firstItem = sourceItems.indexOfFirst { src ->
+                    selectItems.firstOrNull()?.let { it.bookSourceUrl == src.bookSourceUrl } == true
+                }
+                val lastItem = sourceItems.indexOfLast { src ->
+                    selectItems.lastOrNull()?.let { it.bookSourceUrl == src.bookSourceUrl } == true
+                }
                 Debug.isChecking = firstItem >= 0 && lastItem >= 0
                 startCheckMessageRefreshJob(firstItem, lastItem)
             }
@@ -698,6 +740,29 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
     override fun upCountView() {
         binding.selectActionBar
             .upCountView(adapter.selection.size, adapter.itemCount)
+    }
+
+    override fun onDomainToggleChanged() {
+        upBookSource(searchView.query?.toString())
+    }
+
+    override fun onDomainLongClick(domainKey: String) {
+        val dialog = alert(titleResource = R.string.draw) {
+            setMessage("域名: $domainKey\n选择对整个域名组的操作：")
+            setPositiveButton("启用全部") { _, _ ->
+                val sources = appDb.bookSourceDao.getByDomainKey(domainKey)
+                viewModel.enable(true, sources)
+                upBookSource(searchView.query?.toString())
+            }
+            setNegativeButton("禁用全部") { _, _ ->
+                val sources = appDb.bookSourceDao.getByDomainKey(domainKey)
+                viewModel.enable(false, sources)
+                upBookSource(searchView.query?.toString())
+            }
+            setNeutralButton("选择全部") { _, _ ->
+                adapter.selectDomain(domainKey)
+            }
+        }
     }
 
     override fun getSourceHost(origin: String): String {

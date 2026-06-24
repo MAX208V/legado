@@ -1002,6 +1002,10 @@
     <string name="change_source_batch">Batch source switching</string>
     <string name="book_type_different">Different types of books</string>
     <string name="soure_change_source">Whether to confirm the source change</string>
+    <string name="select_source_version">Select source version</string>
+    <string name="select_source_version_hint">Multiple versions of the same source found, please select:</string>
+    <string name="domain_regex">Domain regex (optional)</string>
+    <string name="domain_key">Domain key (auto)</string>
     <string name="input_verification_code">Enter the CAPTCHA</string>
     <string name="verification_code">Verification code</string>
     <string name="timeout_millisecond">Timed out milliseconds</string>
