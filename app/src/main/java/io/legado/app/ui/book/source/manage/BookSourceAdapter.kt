@@ -152,8 +152,12 @@ class BookSourceAdapter(
             ivMenuMore.gone()
             ivExplore.gone()
             ivDebugText.gone()
-            ivProgressBar()
-           s =                bundle.keySetit {
+            ivProgressBar.visibility = View.GONE
+        } else {
+            for (i in payloads.indices) {
+                val bundle = payloads[i] as Bundle
+                bundle.keySet().forEach { key ->
+                    when (key) {
                         "upDomain" -> {
                             val arrow = if (isDomainExpanded(item.domainKey)) "\u25BC" else "\u25B6"
                             tvHostText.text = "$arrow ${item.domainKey}"
