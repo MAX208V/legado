@@ -355,7 +355,7 @@ class ChangeBookSourceDialog() : BaseDialogFragment(R.layout.dialog_book_change_
             titleResource = R.string.select_source_version,
             messageResource = R.string.select_source_version_hint
         ) {
-            items(names.toTypedArray()) { _, which ->
+            items(names) { _, which ->
                 changeTo(options[which])
             }
             cancelButton()

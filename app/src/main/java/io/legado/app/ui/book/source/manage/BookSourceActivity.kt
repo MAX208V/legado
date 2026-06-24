@@ -745,22 +745,26 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
     }
 
     override fun onDomainLongClick(domainKey: String) {
+        val actionItems = listOf("启用全部", "禁用全部", "选择全部")
         alert(titleResource = R.string.draw) {
-            setMessage("域名: $domainKey\n选择对整个域名组的操作：")
-            yesButton("启用全部") {
-                val sources = appDb.bookSourceDao.getByDomainKey(domainKey)
-                viewModel.enable(true, sources)
-                upBookSource(searchView.query?.toString())
+            setMessage("域名: $domainKey")
+            items(actionItems) { _, which ->
+                when (which) {
+                    0 -> {
+                        val sources = appDb.bookSourceDao.getByDomainKey(domainKey)
+                        viewModel.enable(true, sources)
+                        upBookSource(searchView.query?.toString())
+                    }
+                    1 -> {
+                        val sources = appDb.bookSourceDao.getByDomainKey(domainKey)
+                        viewModel.enable(false, sources)
+                        upBookSource(searchView.query?.toString())
+                    }
+                    2 -> adapter.selectDomain(domainKey)
+                }
             }
-            noButton("禁用全部") {
-                val sources = appDb.bookSourceDao.getByDomainKey(domainKey)
-                viewModel.enable(false, sources)
-                upBookSource(searchView.query?.toString())
-            }
-            neutralButton("选择全部") {
-                adapter.selectDomain(domainKey)
-            }
-        }.show()
+            cancelButton()
+        }
     }
 
     override fun onQueryTextChange(newText: String?): Boolean {
