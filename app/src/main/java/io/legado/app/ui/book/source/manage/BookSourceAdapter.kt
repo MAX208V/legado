@@ -145,32 +145,20 @@ class BookSourceAdapter(
             val info = "[${item.sourceCount}个源, ${item.enabledCount}个启用]"
             tvHostText.append(" $info")
             tvHostText.visible()
-            // 显示全选checkbox
-            cbBookSource.visible()
-            cbBookSource.text = "全选"
-            cbBookSource.isChecked = item.sourceCount > 0 &&
-                getSelectedCountForDomain(item.domainKey) == item.sourceCount
-            // 隐藏其他操作元素
+            // 隐藏其他元素
+            cbBookSource.gone()
             swtEnabled.gone()
             ivEdit.gone()
             ivMenuMore.gone()
             ivExplore.gone()
             ivDebugText.gone()
-            ivProgressBar.gone()
-        } else {
-            for (i in payloads.indices) {
-                val bundle = payloads[i] as Bundle
-                bundle.keySet().forEach {
-                    when (it) {
+            ivProgressBar()
+           s =                bundle.keySetit {
                         "upDomain" -> {
                             val arrow = if (isDomainExpanded(item.domainKey)) "\u25BC" else "\u25B6"
                             tvHostText.text = "$arrow ${item.domainKey}"
                             val info = "[${item.sourceCount}个源, ${item.enabledCount}个启用]"
                             tvHostText.append(" $info")
-                        }
-                        "selected" -> {
-                            cbBookSource.isChecked = item.sourceCount > 0 &&
-                                getSelectedCountForDomain(item.domainKey) == item.sourceCount
                         }
                     }
                 }
@@ -223,21 +211,6 @@ class BookSourceAdapter(
                     binding.tvHostText.setOnLongClickListener {
                         callBack.onDomainLongClick(item.domainKey)
                         true
-                    }
-                    binding.cbBookSource.setOnClickListener {
-                        val allSelected = getSelectedCountForDomain(item.domainKey) == item.sourceCount
-                        if (allSelected) {
-                            // 全部已选 → 取消全选
-                            getItems().filterIsInstance<BookSourceListItem.SourceItem>()
-                                .filter { it.source.domainKey == item.domainKey }
-                                .forEach { selected.remove(it.source) }
-                        } else {
-                            // 全选
-                            selectDomain(item.domainKey)
-                        }
-                        notifyItemRangeChanged(0, itemCount,
-                            bundleOf(Pair("selected", null)))
-                        callBack.upCountView()
                     }
                 }
                 is BookSourceListItem.SourceItem -> {

@@ -736,8 +736,9 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
     }
 
     override fun upCountView() {
+        val sourceCount = adapter.getItems().count { it is BookSourceListItem.SourceItem }
         binding.selectActionBar
-            .upCountView(adapter.selection.size, adapter.itemCount)
+            .upCountView(adapter.selection.size, sourceCount)
     }
 
     override fun onDomainToggleChanged() {
