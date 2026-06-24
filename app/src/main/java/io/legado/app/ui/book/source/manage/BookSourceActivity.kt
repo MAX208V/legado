@@ -409,7 +409,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
                 enabledCount = enabledCount,
                 isExpanded = adapter.isDomainExpanded(domainKey)
             ))
-            // 如果已展开，添加书源条目
+            // 默认展开，只过滤已折叠的域名
             if (adapter.isDomainExpanded(domainKey)) {
                 // 按排序规则排列
                 val sortedSources = if (sort == BookSourceSort.Default) {
