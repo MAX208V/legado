@@ -15,6 +15,7 @@ import io.legado.app.help.http.newCallStrResponse
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.source.SourceHelp
 import io.legado.app.help.source.clearExploreKindsCache
+import io.legado.app.help.source.computeDomainKey
 import io.legado.app.help.storage.ImportOldData
 import io.legado.app.model.SharedJsScope
 import io.legado.app.utils.GSON

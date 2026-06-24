@@ -72,8 +72,8 @@ open class ChangeBookSourceViewModel(application: Application) : BaseViewModel(a
     val totalSourceCount: Int
         get() = bookSourceParts.size
     private var searchBookList = arrayListOf<SearchBook>()
-    // 域名分组：domainKey -> 该域下所有搜索到的书源（用于换源时选版本）
-    private val domainSearchBooks = ConcurrentHashMap<String, MutableList<SearchBook>>()
+    // 域名分组：domainKey -> 该域下所有书源Part（用于换源时选版本）
+    private val domainSourceParts = ConcurrentHashMap<String, MutableList<BookSourcePart>>()
     private val searchBooks = Collections.synchronizedList(arrayListOf<SearchBook>())
     private val tocMap = ConcurrentHashMap<String, List<BookChapter>>()
     private val _changeSourceProgress = MutableStateFlow(0 to "")
@@ -185,7 +185,7 @@ open class ChangeBookSourceViewModel(application: Application) : BaseViewModel(a
     fun startSearch() {
         execute {
             stopSearch()
-            domainSearchBooks.clear()
+            domainSourceParts.clear()
             if (searchBooks.isNotEmpty()) {
                 appDb.searchBookDao.delete(*searchBooks.toTypedArray())
                 searchBooks.clear()
@@ -218,7 +218,7 @@ open class ChangeBookSourceViewModel(application: Application) : BaseViewModel(a
     fun startSearch(origin: String) {
         execute {
             stopSearch()
-            domainSearchBooks.clear()
+            domainSourceParts.clear()
             bookSourceParts.clear()
             tocMap.clear()
             bookMap.clear()
@@ -249,7 +249,7 @@ open class ChangeBookSourceViewModel(application: Application) : BaseViewModel(a
                 // 记录该域下其他书源的 URL
                 val primary = domainMap[key]
                 val alternatives = group.filter { it.bookSourceUrl != primary?.bookSourceUrl }
-                domainSearchBooks[key] = alternatives.toMutableList()
+                domainSourceParts[key] = alternatives.toMutableList()
             }
         }
         return domainMap.values.toList()
@@ -259,7 +259,7 @@ open class ChangeBookSourceViewModel(application: Application) : BaseViewModel(a
      * 获取某域名下的替代书源（用于版本切换）
      */
     fun getAlternativeSources(domainKey: String): List<SearchBook>? {
-        val alt = domainSearchBooks[domainKey] ?: return null
+        val alt = domainSourceParts[domainKey] ?: return null
         return alt.mapNotNull { part ->
             searchBooks.find { it.origin == part.bookSourceUrl }
         }.ifEmpty { null }

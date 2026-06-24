@@ -47,7 +47,6 @@ import io.legado.app.ui.widget.recycler.DragSelectTouchHelper
 import io.legado.app.ui.widget.recycler.ItemTouchCallback
 import io.legado.app.ui.widget.recycler.VerticalDivider
 import io.legado.app.utils.ACache
-import io.legado.app.utils.NetworkUtils
 import io.legado.app.utils.applyTint
 import io.legado.app.utils.cnCompare
 import io.legado.app.utils.dpToPx
@@ -104,7 +103,6 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
     private var snackBar: Snackbar? = null
     private var groupSourcesByDomain = false
     private var domainRegexEnabled = false
-    private val hostMap = hashMapOf<String, String>()
     private val qrResult = registerForActivityResult(QrCodeResult()) {
         it ?: return@registerForActivityResult
         showDialogFragment(ImportBookSourceDialog(it))
@@ -747,28 +745,22 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
     }
 
     override fun onDomainLongClick(domainKey: String) {
-        val dialog = alert(titleResource = R.string.draw) {
+        alert(titleResource = R.string.draw) {
             setMessage("域名: $domainKey\n选择对整个域名组的操作：")
-            setPositiveButton("启用全部") { _, _ ->
+            yesButton("启用全部") {
                 val sources = appDb.bookSourceDao.getByDomainKey(domainKey)
                 viewModel.enable(true, sources)
                 upBookSource(searchView.query?.toString())
             }
-            setNegativeButton("禁用全部") { _, _ ->
+            noButton("禁用全部") {
                 val sources = appDb.bookSourceDao.getByDomainKey(domainKey)
                 viewModel.enable(false, sources)
                 upBookSource(searchView.query?.toString())
             }
-            setNeutralButton("选择全部") { _, _ ->
+            neutralButton("选择全部") {
                 adapter.selectDomain(domainKey)
             }
-        }
-    }
-
-    override fun getSourceHost(origin: String): String {
-        return hostMap.getOrPut(origin) {
-            NetworkUtils.getSubDomainOrNull(origin) ?: "#"
-        }
+        }.show()
     }
 
     override fun onQueryTextChange(newText: String?): Boolean {
